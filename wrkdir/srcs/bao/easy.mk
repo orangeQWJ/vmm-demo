@@ -47,13 +47,21 @@ submakes:=config
 # Directories
 cur_dir:=$(current_directory)
 src_dir:=$(cur_dir)/src
+# src
 cpu_arch_dir=$(src_dir)/arch
+# src/arch
 lib_dir=$(src_dir)/lib
+# src/lib
 core_dir=$(src_dir)/core
+# src/core
 platforms_dir=$(src_dir)/platform
+# src/platform
 configs_dir=$(cur_dir)/configs
+# ./configs
 CONFIG_REPO?=$(configs_dir)
+#wrkdir/imgs/qemu-riscv64-virt/baremetal/config
 scripts_dir:=$(cur_dir)/scripts
+# ./scripts
 src_dirs:=
 
 #Plataform must be defined excpet for clean target
@@ -64,54 +72,66 @@ endif
 endif
 
 platform_dir=$(platforms_dir)/$(PLATFORM)
+# src/platform/qemu-riscv64-virt
 drivers_dir=$(platforms_dir)/drivers
+# src/platform/drivers
 
 ifeq ($(wildcard $(platform_dir)),)
  $(error Target platform $(PLATFORM) is not supported)
 endif
 
-#-include $(platform_dir)/platform.mk	# must define ARCH and CPU variables
-# Architecture definition
-ARCH:=riscv
-# CPU definition
-CPU:=
-
-drivers := sbi_uart
-
-platform_description:=virt_desc.c
-
-platform-cppflags =
-platform-cflags = 
-platform-asflags =
-platform-ldflags =
+-include $(platform_dir)/platform.mk	# must define ARCH and CPU variables
+## Architecture definition
+#ARCH:=riscv
+## CPU definition
+#CPU:=
+#
+#drivers := sbi_uart
+#
+#platform_description:=virt_desc.c
+#
+#platform-cppflags =
+#platform-cflags = 
+#platform-asflags =
+#platform-ldflags =
 cpu_arch_dir=$(src_dir)/arch/$(ARCH)
-#-include $(cpu_arch_dir)/arch.mk
-CROSS_COMPILE ?= riscv64-unknown-elf-
+# src/arch/riscv
+-include $(cpu_arch_dir)/arch.mk
+#CROSS_COMPILE ?= riscv64-unknown-elf-
 
-arch-cppflags = 
-arch-cflags = -mcmodel=medany -march=rv64g -mstrict-align
-arch-asflags =
-arch-ldflags = 
+#arch-cppflags = 
+#arch-cflags = -mcmodel=medany -march=rv64g -mstrict-align
+#arch-asflags =
+#arch-ldflags = 
 
-arch_mem_prot:=mmu
-PAGE_SIZE:=0x1000
+#arch_mem_prot:=mmu
+#PAGE_SIZE:=0x1000
 ifneq ($(MAKECMDGOALS), clean)
  core_mem_prot_dir:=$(core_dir)/$(arch_mem_prot)
 endif
 
 
 build_dir:=$(cur_dir)/build/$(PLATFORM)/$(CONFIG)
+# 这是为在qemu-riscv64-virt 平台上运行 baremetal 而准备的目录
+# build/qemu-riscv64-virt/baremetal
 bin_dir:=$(cur_dir)/bin/$(PLATFORM)/$(CONFIG)
+# 这是为在qemu-riscv64-virt 平台上运行 baremetal 而准备的目录
 directories:=$(build_dir) $(bin_dir)
 
 src_dirs+=$(cpu_arch_dir) $(lib_dir) $(core_dir) $(core_mem_prot_dir) \
 	$(platform_dir) $(addprefix $(drivers_dir)/, $(drivers))
 	# $cpu_arch_dir
+# src/arch/riscv
 	# $lib_dir
+# src/lib
 	# $core_dir
+# src/core
 	# $core_mem_prot_dir
+# src/core/mmu
 	# $platform_dir
+# src/platform/qemu-riscv64-virt
 	# $drivers/sbi_uart
+# src/platform/drivers/sbi_uart
 inc_dirs:=$(addsuffix /inc, $(src_dirs))
 # $cpu_arch_dir/inc
 # $lib_dir/inc
@@ -129,17 +149,18 @@ objs-y+=$(addprefix $(lib_dir)/, $(lib-objs-y))
 objs-y+=$(addprefix $(core_dir)/, $(core-objs-y))
 objs-y+=$(addprefix $(platform_dir)/, $(boards-objs-y))
 objs-y+=$(addprefix $(drivers_dir)/, $(drivers-objs-y))
-# 将几个源码比较集中的几个文件夹中的源代码收集,同一放到objs-y 变量中
-
 
 deps+=$(patsubst %.o,%.d,$(objs-y))
-# deps 还是源码路径
+# 此时还是源文件位置
+# 替换
+# $(patsubst pattern,replacement,text)
+
 objs-y:=$(patsubst $(src_dir)%, $(build_dir)%, $(objs-y))
-# objs-y 此时是生成的.o文件的路径名的集合
+# objs-y 此时是最终生成的.o文件的路径名的集合
 
 build_dirs:=$(patsubst $(src_dir)%, $(build_dir)%, $(src_dirs) $(inc_dirs))
 directories+=$(build_dirs)
-# 用于mkdir -p 创建文件夹
+# 用于mkdir -p 创建文件夹?
 
 
 # Setup list of targets for compilation
@@ -160,7 +181,6 @@ deps+=$(asm_defs_hdr).d
 
 gens:=
 gens+=$(asm_defs_hdr)
-# asm_defs.h 是在运行时生成的,添加到inc路径,供后续编译使用
 
 
 config_dir:=$(CONFIG_REPO)
@@ -179,8 +199,6 @@ config_def_generator_src:=$(scripts_dir)/config_defs_gen.c
 config_def_generator:=$(scripts_build_dir)/config_defs_gen
 config_defs:=$(config_build_dir)/config_defs_gen.h
 gens+=$(config_def_generator) $(config_defs)
-# config_defs_gen
-# config_defs_gen.h 也是后来生成的,添加到头文件搜索路径中,参与后续编译
 inc_dirs+=$(config_build_dir)
 
 platform_def_generator_src:=$(scripts_dir)/platform_defs_gen.c
@@ -218,7 +236,6 @@ endif
 
 override CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
 	$(platform-cppflags) $(build_macros)
-# 实际上添加了生成的中间文件所在的目录,和-DMMU
 vpath:.=CPPFLAGS
 
 ifeq ($(DEBUG), y)

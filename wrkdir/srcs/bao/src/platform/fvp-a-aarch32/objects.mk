@@ -1,1 +1,0 @@
-../fvp-a/objects.mk
